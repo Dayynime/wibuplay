@@ -1,6 +1,9 @@
 package com.dayynime.wibuplay.ui.navigation
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionLayout
 import androidx.compose.animation.fadeIn
@@ -78,7 +81,13 @@ fun AppNavigation(
         NavHost(
             navController = navController,
             startDestination = Screen.Home.route,
-            modifier = Modifier.fillMaxSize()
+            modifier = Modifier.fillMaxSize(),
+            // Layar baru fade-in, layar lama diam di bawahnya (tidak ikut fade) -> tidak ada
+            // "dip" gelap di tengah transisi, dan poster terbang di atas Beranda yang masih utuh.
+            enterTransition = { fadeIn(tween(300)) },
+            exitTransition = { ExitTransition.None },
+            popEnterTransition = { EnterTransition.None },
+            popExitTransition = { fadeOut(tween(300)) }
         ) {
             // Home Screen
             composable(Screen.Home.route) {

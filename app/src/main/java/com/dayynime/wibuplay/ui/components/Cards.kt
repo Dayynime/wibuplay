@@ -27,6 +27,7 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -42,6 +43,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import coil.memory.MemoryCache
 import coil.request.ImageRequest
 import com.dayynime.wibuplay.data.model.AnimeItem
 import com.dayynime.wibuplay.ui.theme.AccentViolet
@@ -62,6 +64,7 @@ fun AnimePosterCard(
     sharedKey: String? = null
 ) {
     val posterHolder = LocalPosterTransitionHolder.current
+    val cacheKey = remember { mutableStateOf<MemoryCache.Key?>(null) }
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
     val scale by animateFloatAsState(
@@ -80,6 +83,7 @@ fun AnimePosterCard(
                 onClick = {
                     posterHolder.key = sharedKey
                     posterHolder.url = anime.getPosterUrl()
+                    posterHolder.cacheKey = cacheKey.value
                     onClick()
                 }
             )
@@ -88,7 +92,6 @@ fun AnimePosterCard(
             modifier = Modifier
                 .fillMaxWidth()
                 .aspectRatio(2f / 3f)
-                .posterSharedElement(sharedKey)
                 .clip(CardShape)
                 .background(SurfaceCard)
         ) {
@@ -99,7 +102,12 @@ fun AnimePosterCard(
                     .build(),
                 contentDescription = anime.title,
                 contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize()
+                onSuccess = { cacheKey.value = it.result.memoryCacheKey },
+                // shared element dipasang di gambarnya saja (bukan seluruh kartu), jadi
+                // badge/gradient ikut fade bareng Beranda, bukan hilang mendadak
+                modifier = Modifier
+                    .fillMaxSize()
+                    .posterSharedElement(sharedKey)
             )
 
             // Bottom gradient

@@ -115,19 +115,29 @@ fun DetailScreen(
             .fillMaxSize()
             .background(BackgroundDark)
     ) {
+        // Latar poster layar penuh: dipasang SEKALI di sini (di luar cabang loading/loaded)
+        // supaya shared element tidak putus/kedip saat data selesai dimuat.
+        val loadedAnime = uiState.anime
+        val backdropUrl = loadedAnime?.getPosterUrl().orEmpty()
+            .ifBlank { loadedAnime?.getCoverUrl().orEmpty() }
+            .ifBlank { posterHolder.url.orEmpty() }
+        if (backdropUrl.isNotBlank() && !(uiState.error != null && loadedAnime == null)) {
+            AsyncImage(
+                model = ImageRequest.Builder(LocalContext.current)
+                    .data(backdropUrl)
+                    .placeholderMemoryCacheKey(posterHolder.cacheKey)
+                    .crossfade(true)
+                    .build(),
+                contentDescription = loadedAnime?.title,
+                contentScale = ContentScale.Crop,
+                alignment = Alignment.TopCenter,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .posterSharedElement(sharedKey)
+            )
+        }
+
         if (uiState.isLoading) {
-            // Tampilkan poster dari Beranda selagi data dimuat, supaya shared element tidak putus
-            if (sharedKey != null && !posterHolder.url.isNullOrBlank()) {
-                AsyncImage(
-                    model = posterHolder.url,
-                    contentDescription = null,
-                    contentScale = ContentScale.Crop,
-                    alignment = Alignment.TopCenter,
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .posterSharedElement(sharedKey)
-                )
-            }
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator(color = AccentViolet)
             }
@@ -144,8 +154,6 @@ fun DetailScreen(
         }
 
         val anime = uiState.anime
-        // Poster (portrait) dipakai sebagai latar layar penuh; kalau kosong pakai cover.
-        val backdropUrl = anime?.getPosterUrl().orEmpty().ifBlank { anime?.getCoverUrl().orEmpty() }
 
         BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
             // Tinggi area gambar yang dibiarkan terlihat sebelum konten mulai
@@ -157,20 +165,6 @@ fun DetailScreen(
                     else (listState.firstVisibleItemScrollOffset / heroHeightPx).coerceIn(0f, 1f)
                 }
             }
-
-            // Latar gambar layar penuh
-            AsyncImage(
-                model = ImageRequest.Builder(LocalContext.current)
-                    .data(backdropUrl)
-                    .crossfade(true)
-                    .build(),
-                contentDescription = anime?.title,
-                contentScale = ContentScale.Crop,
-                alignment = Alignment.TopCenter,
-                modifier = Modifier
-                    .fillMaxSize()
-                    .posterSharedElement(sharedKey)
-            )
 
             // Gradient: gambar jelas di atas, makin gelap ke bawah supaya teks terbaca
             Box(
