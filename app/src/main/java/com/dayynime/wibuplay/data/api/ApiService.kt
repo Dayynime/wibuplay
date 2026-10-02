@@ -1,10 +1,12 @@
 package com.dayynime.wibuplay.data.api
 
+import com.squareup.moshi.JsonClass
 import retrofit2.http.GET
 import retrofit2.http.Path
 import retrofit2.http.Query
 import retrofit2.http.QueryMap
 
+@JsonClass(generateAdapter = true)
 data class ApiResponseWrapper(
     val status: Int? = null,
     val error: Boolean? = null,

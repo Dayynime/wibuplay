@@ -32,3 +32,8 @@
 
 # Entity Room.
 -keep class com.dayynime.wibuplay.data.local.** { *; }
+
+# Lapisan API (ApiResponseWrapper dkk) harus tetap utuh, kalau tidak Moshi gagal parse
+# dan semua layar (Beranda, Jelajah, Jadwal, Cuplix) menampilkan "Gagal memuat".
+-keep class com.dayynime.wibuplay.data.api.** { *; }
+-keepclassmembers @com.squareup.moshi.JsonClass class * { *; }
