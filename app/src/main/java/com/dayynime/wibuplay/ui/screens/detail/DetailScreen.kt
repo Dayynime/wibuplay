@@ -74,6 +74,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
+import com.dayynime.wibuplay.ui.components.LocalPosterTransitionHolder
+import com.dayynime.wibuplay.ui.components.posterSharedElement
 import coil.request.ImageRequest
 import com.dayynime.wibuplay.data.model.EpisodeItem
 import com.dayynime.wibuplay.ui.components.EmptyState
@@ -103,6 +105,8 @@ fun DetailScreen(
     val isFavorite by viewModel.isFavorite.collectAsStateWithLifecycle()
     var isSynopsisExpanded by remember { mutableStateOf(false) }
     val listState = rememberLazyListState()
+    val posterHolder = LocalPosterTransitionHolder.current
+    val sharedKey = posterHolder.key
 
     val tabs = listOf("Ringkasan", "Daftar Episode", "Media & Cuplix")
 
@@ -112,6 +116,18 @@ fun DetailScreen(
             .background(BackgroundDark)
     ) {
         if (uiState.isLoading) {
+            // Tampilkan poster dari Beranda selagi data dimuat, supaya shared element tidak putus
+            if (sharedKey != null && !posterHolder.url.isNullOrBlank()) {
+                AsyncImage(
+                    model = posterHolder.url,
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    alignment = Alignment.TopCenter,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .posterSharedElement(sharedKey)
+                )
+            }
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator(color = AccentViolet)
             }
@@ -151,7 +167,9 @@ fun DetailScreen(
                 contentDescription = anime?.title,
                 contentScale = ContentScale.Crop,
                 alignment = Alignment.TopCenter,
-                modifier = Modifier.fillMaxSize()
+                modifier = Modifier
+                    .fillMaxSize()
+                    .posterSharedElement(sharedKey)
             )
 
             // Gradient: gambar jelas di atas, makin gelap ke bawah supaya teks terbaca

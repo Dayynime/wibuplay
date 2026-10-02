@@ -58,8 +58,10 @@ fun AnimePosterCard(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     width: Dp = 140.dp,
-    showRank: Int? = null
+    showRank: Int? = null,
+    sharedKey: String? = null
 ) {
+    val posterHolder = LocalPosterTransitionHolder.current
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
     val scale by animateFloatAsState(
@@ -75,13 +77,18 @@ fun AnimePosterCard(
             .clickable(
                 interactionSource = interactionSource,
                 indication = null,
-                onClick = onClick
+                onClick = {
+                    posterHolder.key = sharedKey
+                    posterHolder.url = anime.getPosterUrl()
+                    onClick()
+                }
             )
     ) {
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .aspectRatio(2f / 3f)
+                .posterSharedElement(sharedKey)
                 .clip(CardShape)
                 .background(SurfaceCard)
         ) {

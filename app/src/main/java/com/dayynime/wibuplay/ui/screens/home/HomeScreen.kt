@@ -265,7 +265,8 @@ fun HomeScreen(
                                             items(favorites) { fav ->
                                                 AnimePosterCard(
                                                     anime = fav.toAnimeItem(),
-                                                    onClick = { onAnimeClick(fav.id) }
+                                                    onClick = { onAnimeClick(fav.id) },
+                                                    sharedKey = "poster_fav_${fav.id}"
                                                 )
                                             }
                                         }
@@ -295,7 +296,8 @@ fun HomeScreen(
                                             items(newEpisodes) { anime ->
                                                 AnimePosterCard(
                                                     anime = anime,
-                                                    onClick = { anime.id?.let { onAnimeClick(it) } }
+                                                    onClick = { anime.id?.let { onAnimeClick(it) } },
+                                                    sharedKey = anime.id?.let { "poster_new_$it" }
                                                 )
                                             }
                                         }
@@ -320,7 +322,8 @@ fun HomeScreen(
                                             items(sections.today) { anime ->
                                                 AnimePosterCard(
                                                     anime = anime,
-                                                    onClick = { anime.id?.let { onAnimeClick(it) } }
+                                                    onClick = { anime.id?.let { onAnimeClick(it) } },
+                                                    sharedKey = anime.id?.let { "poster_today_$it" }
                                                 )
                                             }
                                         }
@@ -349,7 +352,8 @@ fun HomeScreen(
                                             items(sections.popular) { anime ->
                                                 AnimePosterCard(
                                                     anime = anime,
-                                                    onClick = { anime.id?.let { onAnimeClick(it) } }
+                                                    onClick = { anime.id?.let { onAnimeClick(it) } },
+                                                    sharedKey = anime.id?.let { "poster_popular_$it" }
                                                 )
                                             }
                                         }
@@ -378,7 +382,8 @@ fun HomeScreen(
                                             items(sections.random) { anime ->
                                                 AnimePosterCard(
                                                     anime = anime,
-                                                    onClick = { anime.id?.let { onAnimeClick(it) } }
+                                                    onClick = { anime.id?.let { onAnimeClick(it) } },
+                                                    sharedKey = anime.id?.let { "poster_random_$it" }
                                                 )
                                             }
                                         }

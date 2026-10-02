@@ -1,6 +1,8 @@
 package com.dayynime.wibuplay.ui.navigation
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.animation.SharedTransitionLayout
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
@@ -9,6 +11,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -22,6 +26,10 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.dayynime.wibuplay.data.repository.AnimeRepository
 import com.dayynime.wibuplay.ui.components.FloatingBottomBar
+import com.dayynime.wibuplay.ui.components.LocalNavAnimatedScope
+import com.dayynime.wibuplay.ui.components.LocalPosterTransitionHolder
+import com.dayynime.wibuplay.ui.components.LocalSharedTransitionScope
+import com.dayynime.wibuplay.ui.components.PosterTransitionHolder
 import com.dayynime.wibuplay.ui.screens.cuplix.CuplixScreen
 import com.dayynime.wibuplay.ui.screens.cuplix.CuplixViewModel
 import com.dayynime.wibuplay.ui.screens.detail.DetailScreen
@@ -38,12 +46,14 @@ import com.dayynime.wibuplay.ui.screens.schedule.ScheduleScreen
 import com.dayynime.wibuplay.ui.screens.schedule.ScheduleViewModel
 import com.dayynime.wibuplay.ui.theme.BackgroundDark
 
+@OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 fun AppNavigation(
     repository: AnimeRepository,
     modifier: Modifier = Modifier
 ) {
     val navController = rememberNavController()
+    val posterHolder = remember { PosterTransitionHolder() }
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination?.route
 
@@ -59,6 +69,12 @@ fun AppNavigation(
             .fillMaxSize()
             .background(BackgroundDark)
     ) {
+        SharedTransitionLayout(modifier = Modifier.fillMaxSize()) {
+        val sharedScope = this
+        CompositionLocalProvider(
+            LocalSharedTransitionScope provides sharedScope,
+            LocalPosterTransitionHolder provides posterHolder
+        ) {
         NavHost(
             navController = navController,
             startDestination = Screen.Home.route,
@@ -66,6 +82,7 @@ fun AppNavigation(
         ) {
             // Home Screen
             composable(Screen.Home.route) {
+                CompositionLocalProvider(LocalNavAnimatedScope provides this) {
                 val homeViewModel: HomeViewModel = viewModel(
                     factory = AppViewModelFactory(repository)
                 )
@@ -95,6 +112,7 @@ fun AppNavigation(
                         }
                     }
                 )
+                }
             }
 
             // Explore Screen
@@ -171,6 +189,7 @@ fun AppNavigation(
                     navArgument("movieId") { type = NavType.StringType }
                 )
             ) { backStackEntry ->
+                CompositionLocalProvider(LocalNavAnimatedScope provides this) {
                 val movieId = backStackEntry.arguments?.getString("movieId") ?: ""
                 val detailViewModel: DetailViewModel = viewModel(
                     key = "detail_$movieId",
@@ -183,6 +202,7 @@ fun AppNavigation(
                         navController.navigate(Screen.Player.createRoute(mId, epId))
                     }
                 )
+                }
             }
 
             // Video Player Screen
@@ -207,6 +227,8 @@ fun AppNavigation(
                     }
                 )
             }
+        }
+        }
         }
 
         // Floating Bottom Bar
