@@ -1,0 +1,6 @@
+{
+  "name": "Wibuplay",
+  "description": "Aplikasi streaming anime Wibuplay modern dengan koleksi lengkap dan Cuplix",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
