@@ -71,7 +71,9 @@ fun TopHitsRow(
 ) {
     if (items.isEmpty()) return
 
-    val listState = rememberLazyListState()
+    // Mulai dari poster tengah (mis. #5 dari 10) supaya kiri & kanan sama-sama terisi.
+    val startIndex = (items.size - 1) / 2
+    val listState = rememberLazyListState(initialFirstVisibleItemIndex = startIndex)
     val flingBehavior = rememberSnapFlingBehavior(lazyListState = listState)
     val scope = rememberCoroutineScope()
 

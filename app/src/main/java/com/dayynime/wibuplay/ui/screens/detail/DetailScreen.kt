@@ -1,6 +1,14 @@
 package com.dayynime.wibuplay.ui.screens.detail
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -94,6 +102,7 @@ fun DetailScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val isFavorite by viewModel.isFavorite.collectAsStateWithLifecycle()
     var isSynopsisExpanded by remember { mutableStateOf(false) }
+    val listState = rememberLazyListState()
 
     val tabs = listOf("Ringkasan", "Daftar Episode", "Media & Cuplix")
 
@@ -119,70 +128,127 @@ fun DetailScreen(
         }
 
         val anime = uiState.anime
+        // Poster (portrait) dipakai sebagai latar layar penuh; kalau kosong pakai cover.
+        val backdropUrl = anime?.getPosterUrl().orEmpty().ifBlank { anime?.getCoverUrl().orEmpty() }
 
-        LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(bottom = 110.dp)
-        ) {
-            // Full-bleed Cover Image with strong bottom gradient
-            item {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(380.dp)
-                ) {
-                    AsyncImage(
-                        model = ImageRequest.Builder(LocalContext.current)
-                            .data(anime?.getCoverUrl())
-                            .crossfade(true)
-                            .build(),
-                        contentDescription = anime?.title,
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier.fillMaxSize()
-                    )
+        BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+            // Tinggi area gambar yang dibiarkan terlihat sebelum konten mulai
+            val heroHeight = maxHeight * 0.42f
+            val heroHeightPx = with(LocalDensity.current) { heroHeight.toPx() }
+            val extraScrim by remember(heroHeightPx) {
+                derivedStateOf {
+                    if (listState.firstVisibleItemIndex > 0) 1f
+                    else (listState.firstVisibleItemScrollOffset / heroHeightPx).coerceIn(0f, 1f)
+                }
+            }
 
-                    // Gradient overlay: transparent to solid navy
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .background(
-                                Brush.verticalGradient(
-                                    colors = listOf(
-                                        Color(0x661E1B2E),
-                                        Color(0xAA1E1B2E),
-                                        BackgroundDark
-                                    ),
-                                    startY = 0f,
-                                    endY = 1000f
-                                )
+            // Latar gambar layar penuh
+            AsyncImage(
+                model = ImageRequest.Builder(LocalContext.current)
+                    .data(backdropUrl)
+                    .crossfade(true)
+                    .build(),
+                contentDescription = anime?.title,
+                contentScale = ContentScale.Crop,
+                alignment = Alignment.TopCenter,
+                modifier = Modifier.fillMaxSize()
+            )
+
+            // Gradient: gambar jelas di atas, makin gelap ke bawah supaya teks terbaca
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        Brush.verticalGradient(
+                            colorStops = arrayOf(
+                                0f to Color(0x331E1B2E),
+                                0.40f to Color(0x661E1B2E),
+                                0.68f to Color(0xE61E1B2E),
+                                1f to BackgroundDark
                             )
-                    )
-
-                    // Top Bar Back button
-                    IconButton(
-                        onClick = onBackClick,
-                        modifier = Modifier
-                            .statusBarsPadding()
-                            .padding(16.dp)
-                            .size(42.dp)
-                            .clip(CircleShape)
-                            .background(Color(0x881E1B2E))
-                    ) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
-                            contentDescription = "Kembali",
-                            tint = TextWhite,
-                            modifier = Modifier.size(20.dp)
                         )
-                    }
+                    )
+            )
 
-                    // Anime Title and Metadata in bottom gradient
-                    Column(
+            // Makin gelap saat konten di-scroll ke atas
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .graphicsLayer { alpha = extraScrim * 0.92f }
+                    .background(BackgroundDark)
+            )
+
+            LazyColumn(
+                state = listState,
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(bottom = 110.dp)
+            ) {
+                // Ruang kosong supaya gambar terlihat di atas
+                item { Spacer(modifier = Modifier.height(heroHeight)) }
+
+                // Tab (teks kecil, garis bawah di tab aktif)
+                item {
+                    Row(
                         modifier = Modifier
-                            .align(Alignment.BottomStart)
-                            .padding(horizontal = 20.dp, vertical = 8.dp)
+                            .fillMaxWidth()
+                            .padding(horizontal = 20.dp)
                     ) {
-                        // Badges row: Status, Type, Year, Views
+                        tabs.forEachIndexed { index, title ->
+                            val selected = uiState.selectedTab == index
+                            Column(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clickable(
+                                        interactionSource = remember { MutableInteractionSource() },
+                                        indication = null
+                                    ) { viewModel.setTab(index) }
+                                    .padding(vertical = 8.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Text(
+                                    text = title,
+                                    color = if (selected) TextWhite else TextSecondary,
+                                    fontSize = 13.sp,
+                                    fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium
+                                )
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Box(
+                                    modifier = Modifier
+                                        .height(3.dp)
+                                        .width(if (selected) 28.dp else 0.dp)
+                                        .clip(RoundedCornerShape(2.dp))
+                                        .background(AccentViolet)
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // Judul + chip genre + info singkat
+                item {
+                    Column(modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 14.dp, bottom = 14.dp)) {
+                        Text(
+                            text = anime?.title ?: "Detail Anime",
+                            color = TextWhite,
+                            fontSize = 26.sp,
+                            fontWeight = FontWeight.Bold,
+                            lineHeight = 32.sp,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis
+                        )
+
+                        val genres = anime?.genre?.split(",")?.map { it.trim() }?.filter { it.isNotBlank() } ?: emptyList()
+                        if (genres.isNotEmpty()) {
+                            Spacer(modifier = Modifier.height(10.dp))
+                            FlowRow(
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                genres.forEach { g -> OutlineChip(text = g) }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(10.dp))
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -211,11 +277,7 @@ fun DetailScreen(
                                 )
                             }
                             if (!anime?.year.isNullOrBlank()) {
-                                Text(
-                                    text = "• ${anime!!.year}",
-                                    color = TextSecondary,
-                                    fontSize = 12.sp
-                                )
+                                Text(text = "• ${anime!!.year}", color = TextSecondary, fontSize = 12.sp)
                             }
                             if (!anime?.views.isNullOrBlank()) {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -226,287 +288,226 @@ fun DetailScreen(
                                         modifier = Modifier.size(13.dp)
                                     )
                                     Spacer(modifier = Modifier.width(3.dp))
-                                    Text(
-                                        text = anime!!.views!!,
-                                        color = TextMuted,
-                                        fontSize = 11.sp
-                                    )
-                                }
-                            }
-                        }
-
-                        Spacer(modifier = Modifier.height(8.dp))
-
-                        Text(
-                            text = anime?.title ?: "Detail Anime",
-                            color = TextWhite,
-                            fontSize = 22.sp,
-                            fontWeight = FontWeight.Bold,
-                            lineHeight = 28.sp
-                        )
-
-                        // Genre Chips
-                        val genres = anime?.genre?.split(",")?.map { it.trim() }?.filter { it.isNotBlank() } ?: emptyList()
-                        if (genres.isNotEmpty()) {
-                            Spacer(modifier = Modifier.height(10.dp))
-                            FlowRow(
-                                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                                verticalArrangement = Arrangement.spacedBy(6.dp)
-                            ) {
-                                genres.forEach { g ->
-                                    GenreChip(text = g)
+                                    Text(text = anime!!.views!!, color = TextMuted, fontSize = 11.sp)
                                 }
                             }
                         }
                     }
                 }
-            }
 
-            // Tab Navigation Row
-            item {
-                TabRow(
-                    selectedTabIndex = uiState.selectedTab,
-                    containerColor = BackgroundDark,
-                    contentColor = AccentViolet,
-                    indicator = { tabPositions ->
-                        TabRowDefaults.SecondaryIndicator(
-                            modifier = Modifier.tabIndicatorOffset(tabPositions[uiState.selectedTab]),
-                            color = AccentViolet,
-                            height = 3.dp
-                        )
-                    },
-                    divider = {}
-                ) {
-                    tabs.forEachIndexed { index, title ->
-                        Tab(
-                            selected = uiState.selectedTab == index,
-                            onClick = { viewModel.setTab(index) },
-                            text = {
-                                Text(
-                                    text = title,
-                                    color = if (uiState.selectedTab == index) TextWhite else TextMuted,
-                                    fontSize = 13.sp,
-                                    fontWeight = if (uiState.selectedTab == index) FontWeight.Bold else FontWeight.Medium
-                                )
-                            }
-                        )
-                    }
-                }
-                Spacer(modifier = Modifier.height(16.dp))
-            }
-
-            // Tab Content
-            when (uiState.selectedTab) {
-                0 -> {
-                    // Overview / About Tab
-                    item {
-                        Column(modifier = Modifier.padding(horizontal = 20.dp)) {
-                            Text(
-                                text = "Sinopsis",
-                                color = TextWhite,
-                                fontSize = 16.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                            Spacer(modifier = Modifier.height(8.dp))
-
-                            val synopsisText = anime?.synopsis ?: "Belum ada sinopsis untuk anime ini."
-                            Column(modifier = Modifier.animateContentSize()) {
-                                Text(
-                                    text = synopsisText,
-                                    color = TextSecondary,
-                                    fontSize = 13.sp,
-                                    lineHeight = 20.sp,
-                                    maxLines = if (isSynopsisExpanded) Int.MAX_VALUE else 4,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-                                if (synopsisText.length > 180) {
-                                    Spacer(modifier = Modifier.height(4.dp))
-                                    Text(
-                                        text = if (isSynopsisExpanded) "Sembunyikan" else "Baca selengkapnya",
-                                        color = AccentViolet,
-                                        fontSize = 12.sp,
-                                        fontWeight = FontWeight.SemiBold,
-                                        modifier = Modifier
-                                            .clickable { isSynopsisExpanded = !isSynopsisExpanded }
-                                            .padding(vertical = 4.dp)
-                                    )
-                                }
-                            }
-
-                            Spacer(modifier = Modifier.height(20.dp))
-
-                            // Additional Info Grid
-                            Text(
-                                text = "Informasi Tambahan",
-                                color = TextWhite,
-                                fontSize = 16.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                            Spacer(modifier = Modifier.height(10.dp))
-
-                            InfoRow(label = "Studio", value = anime?.studio ?: "-")
-                            InfoRow(label = "Hari Rilis", value = anime?.day ?: "-")
-                            InfoRow(label = "Mulai Tayang", value = anime?.aired_start ?: "-")
-                            InfoRow(label = "Selesai Tayang", value = anime?.aired_end ?: "-")
-                        }
-                    }
-                }
-                1 -> {
-                    // List of Episodes Tab
-                    item {
-                        // Episode Search Bar
-                        Box(modifier = Modifier.padding(horizontal = 20.dp, vertical = 6.dp)) {
-                            TextField(
-                                value = uiState.episodeSearch,
-                                onValueChange = { viewModel.onEpisodeSearchChange(it) },
-                                placeholder = {
-                                    Text(text = "Cari episode...", color = TextMuted, fontSize = 12.sp)
-                                },
-                                leadingIcon = {
-                                    Icon(
-                                        imageVector = Icons.Outlined.Search,
-                                        contentDescription = null,
-                                        tint = TextMuted,
-                                        modifier = Modifier.size(18.dp)
-                                    )
-                                },
-                                singleLine = true,
-                                shape = PillShape,
-                                colors = TextFieldDefaults.colors(
-                                    focusedContainerColor = SurfaceDark,
-                                    unfocusedContainerColor = SurfaceDark,
-                                    focusedIndicatorColor = Color.Transparent,
-                                    unfocusedIndicatorColor = Color.Transparent,
-                                    focusedTextColor = TextWhite,
-                                    unfocusedTextColor = TextWhite
-                                ),
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(44.dp)
-                            )
-                        }
-                    }
-
-                    if (uiState.isLoadingEpisodes) {
+                // Tab Content
+                when (uiState.selectedTab) {
+                    0 -> {
+                        // Overview / About Tab
                         item {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(32.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                CircularProgressIndicator(color = AccentViolet, modifier = Modifier.size(28.dp))
-                            }
-                        }
-                    } else if (uiState.episodes.isEmpty()) {
-                        item {
-                            EmptyState(
-                                title = "Belum Ada Episode",
-                                subtitle = "Daftar episode belum tersedia atau sedang diperbarui",
-                                icon = Icons.Default.PlayArrow,
-                                modifier = Modifier.padding(20.dp)
-                            )
-                        }
-                    } else {
-                        items(uiState.episodes) { ep ->
-                            EpisodeListItem(
-                                episode = ep,
-                                onClick = {
-                                    ep.id?.let { epId ->
-                                        onWatchEpisode(viewModel.movieId, epId)
-                                    }
-                                }
-                            )
-                        }
-                    }
-                }
-                2 -> {
-                    // Media & Cuplix Tab
-                    item {
-                        Column(modifier = Modifier.padding(horizontal = 20.dp)) {
-                            if (uiState.covers.isNotEmpty()) {
+                            Column(modifier = Modifier.padding(horizontal = 20.dp)) {
                                 Text(
-                                    text = "Cover & Poster",
+                                    text = "Tentang",
                                     color = TextWhite,
-                                    fontSize = 15.sp,
+                                    fontSize = 16.sp,
                                     fontWeight = FontWeight.Bold
                                 )
-                                Spacer(modifier = Modifier.height(10.dp))
-                                Row(
-                                    horizontalArrangement = Arrangement.spacedBy(10.dp),
-                                    modifier = Modifier.fillMaxWidth()
-                                ) {
-                                    uiState.covers.take(3).forEach { media ->
-                                        Box(
+                                Spacer(modifier = Modifier.height(8.dp))
+
+                                val synopsisText = anime?.synopsis ?: "Belum ada sinopsis untuk anime ini."
+                                Column(modifier = Modifier.animateContentSize()) {
+                                    Text(
+                                        text = synopsisText,
+                                        color = TextSecondary,
+                                        fontSize = 13.sp,
+                                        lineHeight = 20.sp,
+                                        maxLines = if (isSynopsisExpanded) Int.MAX_VALUE else 4,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                    if (synopsisText.length > 180) {
+                                        Spacer(modifier = Modifier.height(4.dp))
+                                        Text(
+                                            text = if (isSynopsisExpanded) "Sembunyikan" else "Baca selengkapnya",
+                                            color = AccentViolet,
+                                            fontSize = 12.sp,
+                                            fontWeight = FontWeight.SemiBold,
                                             modifier = Modifier
-                                                .weight(1f)
-                                                .aspectRatio(16f / 9f)
-                                                .clip(CardShape)
-                                                .background(SurfaceDark)
-                                        ) {
-                                            AsyncImage(
-                                                model = media.getFullImageUrl(),
-                                                contentDescription = null,
-                                                contentScale = ContentScale.Crop,
-                                                modifier = Modifier.fillMaxSize()
-                                            )
-                                        }
+                                                .clickable { isSynopsisExpanded = !isSynopsisExpanded }
+                                                .padding(vertical = 4.dp)
+                                        )
                                     }
                                 }
+
                                 Spacer(modifier = Modifier.height(20.dp))
-                            }
 
-                            if (uiState.cuplix.isNotEmpty()) {
+                                // Additional Info Grid
                                 Text(
-                                    text = "Cuplix Terkait",
+                                    text = "Informasi Tambahan",
                                     color = TextWhite,
-                                    fontSize = 15.sp,
+                                    fontSize = 16.sp,
                                     fontWeight = FontWeight.Bold
                                 )
                                 Spacer(modifier = Modifier.height(10.dp))
-                                uiState.cuplix.forEach { clip ->
-                                    Row(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(vertical = 4.dp)
-                                            .clip(CardShape)
-                                            .background(SurfaceCard)
-                                            .clickable {
-                                                clip.id_episode?.let { epId ->
-                                                    onWatchEpisode(viewModel.movieId, epId)
-                                                }
-                                            }
-                                            .padding(10.dp),
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Box(
-                                            modifier = Modifier
-                                                .size(54.dp)
-                                                .clip(RoundedCornerShape(8.dp))
-                                                .background(SurfaceDark)
-                                        ) {
-                                            AsyncImage(
-                                                model = clip.getThumbnailUrl(),
-                                                contentDescription = null,
-                                                contentScale = ContentScale.Crop,
-                                                modifier = Modifier.fillMaxSize()
-                                            )
+
+                                InfoRow(label = "Studio", value = anime?.studio ?: "-")
+                                InfoRow(label = "Hari Rilis", value = anime?.day ?: "-")
+                                InfoRow(label = "Mulai Tayang", value = anime?.aired_start ?: "-")
+                                InfoRow(label = "Selesai Tayang", value = anime?.aired_end ?: "-")
+                            }
+                        }
+                    }
+                    1 -> {
+                        // List of Episodes Tab
+                        item {
+                            // Episode Search Bar
+                            Box(modifier = Modifier.padding(horizontal = 20.dp, vertical = 6.dp)) {
+                                TextField(
+                                    value = uiState.episodeSearch,
+                                    onValueChange = { viewModel.onEpisodeSearchChange(it) },
+                                    placeholder = {
+                                        Text(text = "Cari episode...", color = TextMuted, fontSize = 12.sp)
+                                    },
+                                    leadingIcon = {
+                                        Icon(
+                                            imageVector = Icons.Outlined.Search,
+                                            contentDescription = null,
+                                            tint = TextMuted,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                    },
+                                    singleLine = true,
+                                    shape = PillShape,
+                                    colors = TextFieldDefaults.colors(
+                                        focusedContainerColor = SurfaceDark,
+                                        unfocusedContainerColor = SurfaceDark,
+                                        focusedIndicatorColor = Color.Transparent,
+                                        unfocusedIndicatorColor = Color.Transparent,
+                                        focusedTextColor = TextWhite,
+                                        unfocusedTextColor = TextWhite
+                                    ),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(44.dp)
+                                )
+                            }
+                        }
+
+                        if (uiState.isLoadingEpisodes) {
+                            item {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(32.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    CircularProgressIndicator(color = AccentViolet, modifier = Modifier.size(28.dp))
+                                }
+                            }
+                        } else if (uiState.episodes.isEmpty()) {
+                            item {
+                                EmptyState(
+                                    title = "Belum Ada Episode",
+                                    subtitle = "Daftar episode belum tersedia atau sedang diperbarui",
+                                    icon = Icons.Default.PlayArrow,
+                                    modifier = Modifier.padding(20.dp)
+                                )
+                            }
+                        } else {
+                            items(uiState.episodes) { ep ->
+                                EpisodeListItem(
+                                    episode = ep,
+                                    onClick = {
+                                        ep.id?.let { epId ->
+                                            onWatchEpisode(viewModel.movieId, epId)
                                         }
-                                        Spacer(modifier = Modifier.width(12.dp))
-                                        Column(modifier = Modifier.weight(1f)) {
-                                            Text(
-                                                text = clip.caption ?: "Klip Anime",
-                                                color = TextWhite,
-                                                fontSize = 13.sp,
-                                                fontWeight = FontWeight.SemiBold,
-                                                maxLines = 1,
-                                                overflow = TextOverflow.Ellipsis
-                                            )
-                                            Text(
-                                                text = "${clip.count_views ?: "0"} views • ${clip.count_likes ?: "0"} suka",
-                                                color = TextMuted,
-                                                fontSize = 11.sp
-                                            )
+                                    }
+                                )
+                            }
+                        }
+                    }
+                    2 -> {
+                        // Media & Cuplix Tab
+                        item {
+                            Column(modifier = Modifier.padding(horizontal = 20.dp)) {
+                                if (uiState.covers.isNotEmpty()) {
+                                    Text(
+                                        text = "Cover & Poster",
+                                        color = TextWhite,
+                                        fontSize = 15.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    Spacer(modifier = Modifier.height(10.dp))
+                                    Row(
+                                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                        modifier = Modifier.fillMaxWidth()
+                                    ) {
+                                        uiState.covers.take(3).forEach { media ->
+                                            Box(
+                                                modifier = Modifier
+                                                    .weight(1f)
+                                                    .aspectRatio(16f / 9f)
+                                                    .clip(CardShape)
+                                                    .background(SurfaceDark)
+                                            ) {
+                                                AsyncImage(
+                                                    model = media.getFullImageUrl(),
+                                                    contentDescription = null,
+                                                    contentScale = ContentScale.Crop,
+                                                    modifier = Modifier.fillMaxSize()
+                                                )
+                                            }
+                                        }
+                                    }
+                                    Spacer(modifier = Modifier.height(20.dp))
+                                }
+
+                                if (uiState.cuplix.isNotEmpty()) {
+                                    Text(
+                                        text = "Cuplix Terkait",
+                                        color = TextWhite,
+                                        fontSize = 15.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    Spacer(modifier = Modifier.height(10.dp))
+                                    uiState.cuplix.forEach { clip ->
+                                        Row(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(vertical = 4.dp)
+                                                .clip(CardShape)
+                                                .background(SurfaceCard)
+                                                .clickable {
+                                                    clip.id_episode?.let { epId ->
+                                                        onWatchEpisode(viewModel.movieId, epId)
+                                                    }
+                                                }
+                                                .padding(10.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(54.dp)
+                                                    .clip(RoundedCornerShape(8.dp))
+                                                    .background(SurfaceDark)
+                                            ) {
+                                                AsyncImage(
+                                                    model = clip.getThumbnailUrl(),
+                                                    contentDescription = null,
+                                                    contentScale = ContentScale.Crop,
+                                                    modifier = Modifier.fillMaxSize()
+                                                )
+                                            }
+                                            Spacer(modifier = Modifier.width(12.dp))
+                                            Column(modifier = Modifier.weight(1f)) {
+                                                Text(
+                                                    text = clip.caption ?: "Klip Anime",
+                                                    color = TextWhite,
+                                                    fontSize = 13.sp,
+                                                    fontWeight = FontWeight.SemiBold,
+                                                    maxLines = 1,
+                                                    overflow = TextOverflow.Ellipsis
+                                                )
+                                                Text(
+                                                    text = "${clip.count_views ?: "0"} views • ${clip.count_likes ?: "0"} suka",
+                                                    color = TextMuted,
+                                                    fontSize = 11.sp
+                                                )
+                                            }
                                         }
                                     }
                                 }
@@ -517,31 +518,52 @@ fun DetailScreen(
             }
         }
 
-        // Bottom Action Bar: Round Favorite (+) on Left, Wide Pill "Tonton Sekarang" (Watch Now) on Right
+        // Tombol Back (tetap di atas gambar)
+        IconButton(
+            onClick = onBackClick,
+            modifier = Modifier
+                .align(Alignment.TopStart)
+                .statusBarsPadding()
+                .padding(16.dp)
+                .size(42.dp)
+                .clip(CircleShape)
+                .background(Color(0x881E1B2E))
+        ) {
+            Icon(
+                imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
+                contentDescription = "Kembali",
+                tint = TextWhite,
+                modifier = Modifier.size(20.dp)
+            )
+        }
+
+        // Bar bawah: tombol (+) bulat outline di kiri, pill putih "Tonton Sekarang" di kanan
         Row(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
                 .background(
                     Brush.verticalGradient(
-                        colors = listOf(Color.Transparent, BackgroundDark, BackgroundDark)
+                        colors = listOf(Color.Transparent, Color(0xE61E1B2E), BackgroundDark)
                     )
                 )
                 .navigationBarsPadding()
                 .padding(horizontal = 20.dp, vertical = 14.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Round Favorite button
             Box(
                 modifier = Modifier
                     .size(52.dp)
                     .clip(CircleShape)
-                    .background(if (isFavorite) AccentViolet else SurfaceElevated)
+                    .then(
+                        if (isFavorite) Modifier.background(AccentViolet)
+                        else Modifier.border(1.5.dp, Color(0xCCFFFFFF), CircleShape)
+                    )
                     .clickable { viewModel.toggleFavorite() },
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
-                    imageVector = if (isFavorite) Icons.Filled.Bookmark else Icons.Outlined.BookmarkBorder,
+                    imageVector = if (isFavorite) Icons.Default.Check else Icons.Default.Add,
                     contentDescription = "Favorit",
                     tint = TextWhite,
                     modifier = Modifier.size(24.dp)
@@ -550,7 +572,6 @@ fun DetailScreen(
 
             Spacer(modifier = Modifier.width(14.dp))
 
-            // Wide Pill "Watch Now" (Tonton Sekarang) button
             Button(
                 onClick = {
                     val firstEp = uiState.episodes.firstOrNull()?.id ?: ""
@@ -580,6 +601,18 @@ fun DetailScreen(
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun OutlineChip(text: String) {
+    Box(
+        modifier = Modifier
+            .clip(PillShape)
+            .border(1.dp, Color(0x99FFFFFF), PillShape)
+            .padding(horizontal = 12.dp, vertical = 4.dp)
+    ) {
+        Text(text = text, color = TextWhite, fontSize = 11.sp, fontWeight = FontWeight.Medium)
     }
 }
 
