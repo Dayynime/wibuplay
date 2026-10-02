@@ -1,3 +1,5 @@
+@file:OptIn(ExperimentalSharedTransitionApi::class)
+
 package com.dayynime.wibuplay.ui.components
 
 import androidx.compose.animation.AnimatedVisibilityScope
@@ -26,7 +28,6 @@ val LocalPosterTransitionHolder = compositionLocalOf { PosterTransitionHolder() 
  * Pasang shared element dengan [key]. Kalau key null atau scope belum disediakan
  * (mis. layar lain), modifier ini tidak melakukan apa-apa.
  */
-@OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 fun Modifier.posterSharedElement(key: String?): Modifier {
     val sharedScope = LocalSharedTransitionScope.current
